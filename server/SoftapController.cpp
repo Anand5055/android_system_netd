@@ -37,6 +37,9 @@
 #include <android-base/file.h>
 #include <android-base/stringprintf.h>
 #include <cutils/log.h>
+#ifdef MTK_HARDWARE
+#include <cutils/properties.h>
+#endif
 #include <netutils/ifc.h>
 #include <private/android_filesystem_config.h>
 #include "wifi.h"
@@ -53,7 +56,7 @@ using android::base::WriteStringToFile;
 #include "wpa_ctrl.h"
 #endif
 
-std:: string hostapd_unix_file(StringPrintf("/data/misc/wifi/hostapd/wlan0"));
+std:: string hostapd_unix_file(StringPrintf("/data/misc/wifi/hostapd/ap0"));
 #ifdef LIBWPA_CLIENT_EXISTS
 static const char HOSTAPD_DHCP_DIR[]    = "/data/misc/dhcp";
 #endif
@@ -264,6 +267,10 @@ bool SoftapController::isSoftapStarted() {
 int SoftapController::setSoftap(int argc, char *argv[]) {
     int hidden = 0;
     int channel = AP_CHANNEL_DEFAULT;
+#ifdef MTK_HARDWARE
+    char ifname[PROP_VALUE_MAX] = {'\0', };
+    property_get("wifi.tethering.interface", ifname, "ap0");
+#endif
 
     if (argc < 5) {
         ALOGE("Softap set is missing arguments. Please use:");
@@ -289,7 +296,12 @@ int SoftapController::setSoftap(int argc, char *argv[]) {
             "hw_mode=%c\n"
             "ignore_broadcast_ssid=%d\n"
             "wowlan_triggers=any\n",
-            argv[2], argv[3], channel, (channel <= 14) ? 'g' : 'a', hidden));
+#ifndef MTK_HARDWARE
+            argv[2]
+#else
+            ifname
+#endif
+			, argv[3], channel, (channel <= 14) ? 'g' : 'a', hidden));
 
     std::string fbuf;
     if (argc > 7) {
